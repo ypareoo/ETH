@@ -10,6 +10,12 @@
     <height>733</height>
    </rect>
   </property>
+  <property name="sizePolicy">
+   <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+    <horstretch>0</horstretch>
+    <verstretch>0</verstretch>
+   </sizepolicy>
+  </property>
   <property name="windowTitle">
    <string>MainWindow</string>
   </property>
@@ -19,12 +25,12 @@
      <rect>
       <x>140</x>
       <y>360</y>
-      <width>181</width>
+      <width>551</width>
       <height>20</height>
      </rect>
     </property>
     <property name="text">
-     <string>TextLabel</string>
+     <string/>
     </property>
    </widget>
    <widget class="QLabel" name="label_4">
@@ -45,19 +51,26 @@
      <rect>
       <x>190</x>
       <y>10</y>
-      <width>411</width>
-      <height>251</height>
+      <width>461</width>
+      <height>261</height>
      </rect>
     </property>
     <layout class="QGridLayout" name="gridLayout">
-     <item row="10" column="0">
-      <widget class="QLabel" name="statusLabel">
+     <item row="7" column="0">
+      <widget class="QPushButton" name="pushButton">
        <property name="text">
-        <string>TextLabel</string>
+        <string>Envoyer le texte</string>
        </property>
       </widget>
      </item>
-     <item row="4" column="0">
+     <item row="12" column="0">
+      <widget class="QLabel" name="label_2">
+       <property name="text">
+        <string>Message reçu :</string>
+       </property>
+      </widget>
+     </item>
+     <item row="5" column="0">
       <widget class="QTextEdit" name="textEdit">
        <property name="html">
         <string>&lt;!DOCTYPE HTML PUBLIC &quot;-//W3C//DTD HTML 4.0//EN&quot; &quot;http://www.w3.org/TR/REC-html40/strict.dtd&quot;&gt;
@@ -71,35 +84,14 @@ li.checked::marker { content: &quot;\2612&quot;; }
        </property>
       </widget>
      </item>
-     <item row="11" column="0">
-      <widget class="QLabel" name="label_2">
-       <property name="text">
-        <string>Message reçu :</string>
-       </property>
-      </widget>
-     </item>
-     <item row="6" column="0">
-      <widget class="QPushButton" name="pushButton">
-       <property name="text">
-        <string>Envoyer le texte</string>
-       </property>
-      </widget>
-     </item>
-     <item row="8" column="0">
+     <item row="9" column="0">
       <widget class="QLabel" name="label">
        <property name="text">
         <string>Statut :</string>
        </property>
       </widget>
      </item>
-     <item row="12" column="0">
-      <widget class="QLabel" name="MessageLabel">
-       <property name="text">
-        <string>TextLabel</string>
-       </property>
-      </widget>
-     </item>
-     <item row="5" column="0">
+     <item row="6" column="0">
       <widget class="QGroupBox" name="OptionChiffregroupBox">
        <property name="title">
         <string/>
@@ -135,13 +127,48 @@ li.checked::marker { content: &quot;\2612&quot;; }
        </widget>
       </widget>
      </item>
+     <item row="11" column="0">
+      <widget class="QLabel" name="statusLabel">
+       <property name="text">
+        <string>TextLabel</string>
+       </property>
+      </widget>
+     </item>
+     <item row="13" column="0">
+      <widget class="QLabel" name="MessageLabel">
+       <property name="text">
+        <string>TextLabel</string>
+       </property>
+      </widget>
+     </item>
+     <item row="4" column="0">
+      <widget class="QLabel" name="label_11">
+       <property name="sizePolicy">
+        <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+         <horstretch>0</horstretch>
+         <verstretch>0</verstretch>
+        </sizepolicy>
+       </property>
+       <property name="font">
+        <font>
+         <pointsize>17</pointsize>
+         <bold>true</bold>
+         <underline>false</underline>
+         <strikeout>false</strikeout>
+        </font>
+       </property>
+       <property name="text">
+        <string>Communication Machine Enigma</string>
+       </property>
+      </widget>
+     </item>
     </layout>
    </widget>
    <widget class="QWidget" name="horizontalLayoutWidget">
     <property name="geometry">
      <rect>
-      <x>70</x>
-      <y>270</y>
+      <x>50</x>
+      <y>290</y>
       <width>701</width>
       <height>80</height>
      </rect>
@@ -252,7 +279,11 @@ li.checked::marker { content: &quot;\2612&quot;; }
     </property>
     <layout class="QGridLayout" name="gridLayout_2">
      <item row="0" column="1">
-      <widget class="QLineEdit" name="ReceptionMACSRClineEdit"/>
+      <widget class="QLineEdit" name="ReceptionMACSRClineEdit">
+       <property name="text">
+        <string>001122334455</string>
+       </property>
+      </widget>
      </item>
      <item row="0" column="2">
       <widget class="QCheckBox" name="ReceptionSRCcheckBox">
@@ -269,7 +300,11 @@ li.checked::marker { content: &quot;\2612&quot;; }
       </widget>
      </item>
      <item row="1" column="1">
-      <widget class="QLineEdit" name="ReceptionMACDESTlineEdit"/>
+      <widget class="QLineEdit" name="ReceptionMACDESTlineEdit">
+       <property name="text">
+        <string>66778899aabb</string>
+       </property>
+      </widget>
      </item>
      <item row="0" column="0">
       <widget class="QLabel" name="label_9">
