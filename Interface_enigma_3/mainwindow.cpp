@@ -39,7 +39,7 @@ MainWindow::MainWindow(QWidget *parent)
     QRegularExpression re("^[0-9a-fA-F]*$");
     QRegularExpressionValidator *validator = new QRegularExpressionValidator(re, this);
 
-    // On applique le validateur au champ de texte (QLineEdit)
+    // On applique le validateur aux champs de texte (QLineEdit)
     ui->MACSourcelineEdit->setValidator(validator);
     ui->MACDestinationlineEdit->setValidator(validator);
     ui->EthertypelineEdit->setValidator(validator);
@@ -66,7 +66,7 @@ void MainWindow::on_pushButton_clicked()
     // 1. Récupération du texte
     std::string payload = ui->textEdit->toPlainText().toStdString();
 
-    // 2. Sauvegarde dans le fichier texte
+    // 2. Sauvegarde dans le fichier texte (pas d'interêt à ce stade)
     std::ofstream fichier("payload.txt");
     if (fichier.is_open()) {
         fichier << payload;
@@ -138,15 +138,16 @@ void MainWindow::sendRawPacket(const std::string& payload)
     unsigned char mac_dest[6];
     unsigned char mac_src[6];
     unsigned char eth_type[6];
-    if (mac_dest_vector.size() == 6) {
+    if (mac_dest_vector.size() == 6 && mac_src_vector.size() == 6 && eth_type_vector.size() == 2) {
         std::memcpy(mac_dest, mac_dest_vector.data(), 6);
         std::memcpy(mac_src, mac_src_vector.data(), 6);
-        std::memcpy(eth_type, eth_type_vector.data(), 6);
+        std::memcpy(eth_type, eth_type_vector.data(), 2);
 
         // Vous pouvez maintenant l'utiliser dans votre trame :
         // std::memcpy(frame, mac_dest, 6);
     } else {
         emit packetSent("Erreur : L'adresse MAC doit contenir 12 caractères hexadécimaux.");
+        return;
     }
 
 
@@ -246,19 +247,17 @@ void MainWindow::sniffPackets()
 
         if (data_size >= 14) { //
             // On vérifie l'adresse MAC (00:11:22:33:44:55)
-            char a_enregistrer = 0;
+            char a_enregistrer = 1;
             std::vector<uint8_t> mac_src_vector = hexStringToBytes(ui->ReceptionMACSRClineEdit->text().toStdString());
             std::vector<uint8_t> mac_dest_vector = hexStringToBytes(ui->ReceptionMACDESTlineEdit->text().toStdString());
-            if (std::memcmp(buffer,mac_dest_vector.data(),6) == 0  && ui->ReceptionDSTcheckBox->isChecked() == 1){
-                a_enregistrer = 1;
+            if (mac_src_vector.size() != 6 || mac_dest_vector.size() != 6){
+                QString msgerreur = "les adresse mac doivent avoir 6 octets";
+                emit packetReceived(msgerreur);
+                continue;
             }
-            else if (std::memcmp(buffer + 6,mac_src_vector.data(),6) == 0  && ui->ReceptionSRCcheckBox->isChecked() == 1){
-                a_enregistrer = 1;
-            }
-            else if (ui->ReceptionDSTcheckBox->isChecked() == 0 && ui->ReceptionSRCcheckBox->isChecked() == 0){
-                a_enregistrer = 1;
-            }
-            else {
+            if (std::memcmp(buffer,mac_dest_vector.data(),6) != 0  && ui->ReceptionDSTcheckBox->isChecked() == 1){
+                a_enregistrer = 0;}
+            if (std::memcmp(buffer + 6,mac_src_vector.data(),6) != 0  && ui->ReceptionSRCcheckBox->isChecked() == 1){
                 a_enregistrer = 0;
             }
             if (a_enregistrer == 1)
