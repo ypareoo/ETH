@@ -21,16 +21,20 @@ public:
 signals:
     void packetSent(const QString &message);
 
-    // NOUVEAU : Signal émis quand une trame valide est reçue
-    void packetReceived(const QString &payload);
+    // Signal émis quand une trame valide est reçue
+    void packetReceived(QString time, QString src, QString dst, QString type, QString data);
+    // Pour les messages simples ou erreurs (un seul texte)
+    void snifferError(QString message);
 
 private slots:
     void on_pushButton_clicked();
     void updateStatus(const QString &message);
     void on_pushButtonSavePayload_clicked();
+    void on_SendFilepushButton_clicked();
 
     // NOUVEAU : Slot pour mettre à jour l'interface
     void updateMessageLabel(const QString &payload);
+    void updateTable(QString time, QString src, QString dst, QString type, QString data);
 
 private:
     std::string lastReceivedPayload; // Stockage propre de la donnée brute
