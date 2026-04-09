@@ -133,7 +133,7 @@ void MainWindow::sendRawPacket(const std::string& payload)
 
     struct ifreq ifr;
     std::memset(&ifr, 0, sizeof(ifr));
-    std::strncpy(ifr.ifr_name, nomInterface.c_str(), IFNAMSIZ - 1); // <-- VERIFIEZ QUE C'EST LA BONNE INTERFACE
+    std::strncpy(ifr.ifr_name, nomInterface.c_str(), IFNAMSIZ - 1);
 
     if (ioctl(sock, SIOCGIFINDEX, &ifr) < 0) {
         ::close(sock);
@@ -240,6 +240,10 @@ void MainWindow::updateTable(QString time, QString src, QString dst, QString typ
 // thread secondaire de réception
 void MainWindow::sniffPackets()
 {
+    //récupếration du nom de l'interface réseau
+    QString interfaceSelectionnee = ui->interfaceComboBox->currentText();
+    std::string nomInterface = interfaceSelectionnee.toStdString();
+
     int sock = socket(AF_PACKET, SOCK_RAW, htons(ETH_P_ALL)); //
     if (sock < 0) {
         emit snifferError("Erreur : Socket RX (sudo requis)");
@@ -255,7 +259,7 @@ void MainWindow::sniffPackets()
 
     struct ifreq ifr;
     std::memset(&ifr, 0, sizeof(ifr));
-    std::strncpy(ifr.ifr_name, "enp3s0", IFNAMSIZ - 1); //
+    std::strncpy(ifr.ifr_name, nomInterface.c_str(), IFNAMSIZ - 1); //
     if (ioctl(sock, SIOCGIFINDEX, &ifr) < 0) { //
         ::close(sock);
         emit snifferError("Erreur IF RX");
