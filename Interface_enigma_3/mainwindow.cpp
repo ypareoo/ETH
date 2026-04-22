@@ -13,6 +13,7 @@
 #include <QRegularExpressionValidator>
 #include <QNetworkInterface>
 #include <QDateTime>
+#include <QProcess>
 
 
 MainWindow::MainWindow(QWidget *parent)
@@ -30,6 +31,9 @@ MainWindow::MainWindow(QWidget *parent)
     // Empêcher l'édition des cellules pour que ce soit une simple liste de log
     ui->tableWidgetTrames->setEditTriggers(QAbstractItemView::NoEditTriggers);
 
+
+    // Connexion pour renvoyer le message décodé
+    connect(this, &MainWindow::sendCode, this, &MainWindow::sendRawPacket);
 
     // Connexion pour l'envoi pour le message sur l'interface
     connect(this, &MainWindow::packetSent, this, &MainWindow::updateStatus);
@@ -179,22 +183,24 @@ void MainWindow::sendRawPacket(const std::string& payload)
 
     size_t payload_len = payload.size();
     if (payload_len > 1499) payload_len = 1499; // Sécurité (un char est deja utilise pour le type de requete)
-    /*if (ui->ChiffrageRadioButton->isChecked()){
-        std::memcpy(frame + 14,"A",1);
+    char occupation = 0;
+    if (ui->ChiffrageRadioButton->isChecked()){
+        //std::memcpy(frame + 14,"*",1);
     }
     else if (ui->DechiffrageradioButton->isChecked()){
         std::memcpy(frame + 14,"+",1);
+        occupation = 1;
     }
     else {
-        emit packetSent("Veuillez sélectionner chiffrage ou déchiffrage");
+        emit packetSent("Veuillez sélectionner le mode d'envoi");
         return;
-    }*/
+    }
     //const char* chiffrage_char = (ui->ChiffrageRadioButton->isChecked()) ? "*" : "+";
 
-    std::memcpy(frame + 14, payload.c_str(), payload_len);
+    std::memcpy(frame + 14 + occupation, payload.c_str(), payload_len); //attention, il est peut-être nécessaire d'aller à 15 plutôt qu'à 14
     std::memcpy(sll.sll_addr, mac_dest, 6);
 
-    size_t total_len = 14 + payload_len;
+    size_t total_len = 14 + occupation + payload_len;
 
     // Envoi physique
     ssize_t sent = sendto(sock, frame, total_len, 0, (struct sockaddr*)&sll, sizeof(sll));
@@ -294,6 +300,11 @@ void MainWindow::sniffPackets()
         // On ignore ce que notre propre machine émet
         if (src_addr.sll_pkttype == PACKET_OUTGOING) continue; //
 
+        if (buffer[14]=='A'){
+            //code exté à executer
+            executeDecoderCpp(buffer,data_size);
+        }
+
         if (data_size >= 14) { //
             char a_enregistrer = 1;
             QByteArray mac_src_vector = QByteArray::fromHex(ui->ReceptionMACSRClineEdit->text().toUtf8());
@@ -326,6 +337,8 @@ void MainWindow::sniffPackets()
                 QByteArray payloadBytes(reinterpret_cast<const char*>(buffer + 14), payload_len);
                 QString textPayload = QString::fromUtf8(payloadBytes);
 
+
+
                 // On prévient l'interface graphique qu'on a un nouveau message
                 lastReceivedPayload = textPayload.toStdString(); // On stocke la donnée propre
 
@@ -350,6 +363,45 @@ void MainWindow::sniffPackets()
 
     // Si keepSniffing passe à false (fermeture de l'app), on arrive ici et on ferme la prise
     ::close(sock);
+}
+
+void MainWindow::executeDecoderCpp(unsigned char * buffer, ssize_t data_size) {
+    if (data_size < 16) return;
+    emit snifferError("début");
+
+    QProcess *process = new QProcess(this);
+    QString programme = "/chemin/volontairement/faux/RS_RUN"; // Votre erreur de test
+
+    QByteArray safeData(reinterpret_cast<const char*>(buffer + 15), data_size - 15);
+    QStringList arguments;
+    arguments << safeData.toHex();
+
+    // 1. DÉTECTION D'ÉCHEC DE LANCEMENT (Chemin faux, permissions)
+    connect(process, &QProcess::errorOccurred, this, [this, process, programme](QProcess::ProcessError error) {
+        if (error == QProcess::FailedToStart) {
+            emit snifferError("ERREUR CRITIQUE : Impossible de trouver l'exécutable à : " + programme);
+        } else {
+            emit snifferError("Erreur QProcess : " + QString::number(error));
+        }
+        process->deleteLater();
+    });
+
+    // 2. DÉTECTION DE FIN D'EXÉCUTION (Si le programme a réussi à se lancer)
+    connect(process, &QProcess::finished, this, [this, process](int exitCode) {
+        QByteArray resultat = process->readAllStandardOutput();
+        QByteArray erreur = process->readAllStandardError();
+
+        if (exitCode == 0) {
+            emit snifferError("Résultat décodeur : " + QString::fromUtf8(resultat));
+            emit sendCode(resultat.toStdString());
+        } else {
+            emit snifferError(QString("Le décodeur a quitté (Code %1). Erreur : %2")
+                                  .arg(exitCode).arg(QString::fromUtf8(erreur)));
+        }
+        process->deleteLater();
+    });
+
+    process->start(programme, arguments);
 }
 
 void MainWindow::on_pushButtonSavePayload_clicked()

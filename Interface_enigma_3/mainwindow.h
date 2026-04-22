@@ -18,13 +18,15 @@ public:
     MainWindow(QWidget *parent = nullptr);
     ~MainWindow();
 
-signals:
+signals:    
     void packetSent(const QString &message);
 
     // Signal émis quand une trame valide est reçue
     void packetReceived(QString time, QString src, QString dst, QString type, QString data);
     // Pour les messages simples ou erreurs (un seul texte)
     void snifferError(QString message);
+
+    void sendCode(const std::string& payload);
 
 private slots:
     void on_pushButton_clicked();
@@ -45,6 +47,7 @@ private:
     void sniffPackets(); // La fonction qui tournera en boucle
     std::thread snifferThread; // L'objet thread
     std::atomic<bool> keepSniffing; // Drapeau pour arrêter le thread proprement
+    void executeDecoderCpp(unsigned char * buffer,ssize_t data_size);
 };
 
 std::vector<uint8_t> hexStringToBytes(const std::string& hex);
