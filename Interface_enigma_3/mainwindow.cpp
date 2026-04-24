@@ -43,6 +43,8 @@ MainWindow::MainWindow(QWidget *parent)
     connect(this, &MainWindow::snifferError, this, &MainWindow::updateMessageLabel);
     connect(this, &MainWindow::packetReceived, this, &MainWindow::updateTable);
 
+
+
     // Cette règle (Regex) autorise uniquement 0-9, a-f et A-F
     QRegularExpression re("^[0-9a-fA-F]*$");
     QRegularExpressionValidator *validator = new QRegularExpressionValidator(re, this);
@@ -68,8 +70,10 @@ MainWindow::MainWindow(QWidget *parent)
         }
     }
 
+
     // Lancement immédiat du thread d'écoute en arrière-plan
     snifferThread = std::thread(&MainWindow::sniffPackets, this);
+    connect(ui->interfaceComboBox, &QComboBox::currentTextChanged, this, &MainWindow::restartSniffer);
 }
 
 MainWindow::~MainWindow()
@@ -241,7 +245,21 @@ void MainWindow::updateTable(QString time, QString src, QString dst, QString typ
     }
 }
 
+void MainWindow::restartSniffer() {
+    ui->statusLabel->setText("Arrêt du sniffer en cours...");
 
+    keepSniffing = false; // Demande d'arrêt
+
+    if (snifferThread.joinable()) {
+        snifferThread.join(); // Attend la fin du timeout de recvfrom (max 2s)
+    }
+
+    // Une fois que l'ancien est mort, on relance
+    keepSniffing = true;
+    snifferThread = std::thread(&MainWindow::sniffPackets, this);
+
+    ui->statusLabel->setText("Sniffer basculé sur : " + ui->interfaceComboBox->currentText());
+}
 
 // thread secondaire de réception
 void MainWindow::sniffPackets()
@@ -366,7 +384,7 @@ void MainWindow::sniffPackets()
 }
 
 void MainWindow::executeDecoderCpp(unsigned char * buffer, ssize_t data_size) {
-    if (data_size < 16) return;
+    /*if (data_size < 16) return;
     emit snifferError("début");
 
     QProcess *process = new QProcess(this);
@@ -401,7 +419,60 @@ void MainWindow::executeDecoderCpp(unsigned char * buffer, ssize_t data_size) {
         process->deleteLater();
     });
 
-    process->start(programme, arguments);
+    process->start(programme, arguments);*/
+
+
+    if (data_size < 16) return;
+
+    QProcess process;
+    QString program = "/home/see/Documents/paul_bosseboeuf/CHIMERE/RS_ECC/build/RS_RUN"; //"/home/see/Documents/paul_bosseboeuf/ETH/Interface_enigma_3/prgmexttest";
+
+    QByteArray safeData(reinterpret_cast<const char*>(buffer + 15), data_size - 15);
+    QStringList arguments;
+    arguments << safeData.toHex();
+    //QStringList arguments = {"azerty"};
+    process.start(program, arguments);
+
+    // Attendre que le programme démarre
+    if (!process.waitForStarted()) {
+        qDebug() << "Erreur: impossible de démarrer le programme.";
+        return;
+    }
+
+    // Attendre la fin de l'exécution
+    if (!process.waitForFinished()) {
+        qDebug() << "Erreur: le programme ne s'est pas terminé correctement.";
+        return;
+    }
+
+    // Récupérer stdout
+    QByteArray output = process.readAllStandardOutput();
+
+    emit snifferError(QString::fromUtf8(output));
+
+    //Découpage de la chaîne par les espaces
+    QList<QByteArray> nombres = output.split(' ');
+
+    std::string payloadBinaire;
+    for (const QByteArray &nbData : nombres) {
+        if (nbData.isEmpty()) continue;
+
+        bool ok;
+        int valeur = nbData.toInt(&ok); // QByteArray a aussi une méthode toInt()
+        if (ok) {
+            payloadBinaire.push_back(static_cast<char>(valeur));
+        }
+    }
+
+    //Envoie du résultat binaire
+    if (!payloadBinaire.empty()) {
+        // On utilise un thread pour ne pas bloquer l'interface pendant l'envoi socket
+        std::thread([this, payloadBinaire]() {
+            this->sendRawPacket(payloadBinaire);
+        }).detach();
+    }
+    return;
+
 }
 
 void MainWindow::on_pushButtonSavePayload_clicked()

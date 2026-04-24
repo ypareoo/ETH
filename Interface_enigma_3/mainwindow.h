@@ -48,6 +48,7 @@ private:
     std::thread snifferThread; // L'objet thread
     std::atomic<bool> keepSniffing; // Drapeau pour arrêter le thread proprement
     void executeDecoderCpp(unsigned char * buffer,ssize_t data_size);
+    void restartSniffer();
 };
 
 std::vector<uint8_t> hexStringToBytes(const std::string& hex);
