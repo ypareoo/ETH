@@ -22,7 +22,7 @@ MainWindow::MainWindow(QWidget *parent)
     , keepSniffing(true) // On autorise le thread à tourner dès le départ
 {
     ui->setupUi(this);
-
+    //initialisation du tableau des trames receptionnées
     ui->tableWidgetTrames->setColumnCount(5);
     ui->tableWidgetTrames->setHorizontalHeaderLabels({"Heure", "Source", "Destination", "Type", "Payload"});
 
@@ -42,7 +42,6 @@ MainWindow::MainWindow(QWidget *parent)
 
     connect(this, &MainWindow::snifferError, this, &MainWindow::updateMessageLabel);
     connect(this, &MainWindow::packetReceived, this, &MainWindow::updateTable);
-
 
 
     // Cette règle (Regex) autorise uniquement 0-9, a-f et A-F
@@ -69,7 +68,6 @@ MainWindow::MainWindow(QWidget *parent)
             ui->interfaceComboBox->addItem(iface.name());
         }
     }
-
 
     // Lancement immédiat du thread d'écoute en arrière-plan
     snifferThread = std::thread(&MainWindow::sniffPackets, this);
@@ -115,7 +113,7 @@ void MainWindow::on_pushButton_clicked()
     senderThread.detach();
 }
 
-// Fonction appelée via le Signal pour mettre à jour l'interface en toute sécurité
+// Fonction appelée via le Signal pour mettre à jour l'interface
 void MainWindow::updateStatus(const QString &message)
 {
     ui->statusLabel->setText(message);
@@ -125,7 +123,7 @@ void MainWindow::updateStatus(const QString &message)
 // Fonction exécutée par le thread secondaire
 void MainWindow::sendRawPacket(const std::string& payload)
 {
-    // On utilise les sockets RAW bruts (comme dans votre classe RawSender)
+    // On utilise les sockets RAW bruts
     int sock = socket(AF_PACKET, SOCK_RAW, htons(ETH_P_ALL));
     if (sock < 0) {
         // Au lieu de modifier le label directment, on émet un signal !
@@ -133,10 +131,10 @@ void MainWindow::sendRawPacket(const std::string& payload)
         return;
     }
 
-    // 1. On récupère le texte affiché dans la liste déroulante
+    // On récupère le texte affiché dans la liste déroulante
     QString interfaceSelectionnee = ui->interfaceComboBox->currentText();
 
-    // 2. On le convertit en std::string (car strncpy a besoin de C++)
+    // On le convertit en std::string (car strncpy a besoin de C++)
     std::string nomInterface = interfaceSelectionnee.toStdString();
 
     struct ifreq ifr;
@@ -172,9 +170,6 @@ void MainWindow::sendRawPacket(const std::string& payload)
         std::memcpy(mac_dest, mac_dest_vector.data(), 6);
         std::memcpy(mac_src, mac_src_vector.data(), 6);
         std::memcpy(eth_type, eth_type_vector.data(), 2);
-
-        // Vous pouvez maintenant l'utiliser dans votre trame :
-        // std::memcpy(frame, mac_dest, 6);
     } else {
         emit packetSent("Erreur : L'adresse MAC doit contenir 12 caractères hexadécimaux.");
         return;
@@ -187,7 +182,7 @@ void MainWindow::sendRawPacket(const std::string& payload)
 
     size_t payload_len = payload.size();
     if (payload_len > 1499) payload_len = 1499; // Sécurité (un char est deja utilise pour le type de requete)
-    char occupation = 0;
+    char occupation = 0; //permet de décaler le pointeur pour le remplissage de la trame si l'octet de controle est utilisé
     if (ui->ChiffrageRadioButton->isChecked()){
         //std::memcpy(frame + 14,"*",1);
     }
@@ -199,9 +194,8 @@ void MainWindow::sendRawPacket(const std::string& payload)
         emit packetSent("Veuillez sélectionner le mode d'envoi");
         return;
     }
-    //const char* chiffrage_char = (ui->ChiffrageRadioButton->isChecked()) ? "*" : "+";
 
-    std::memcpy(frame + 14 + occupation, payload.c_str(), payload_len); //attention, il est peut-être nécessaire d'aller à 15 plutôt qu'à 14
+    std::memcpy(frame + 14 + occupation, payload.c_str(), payload_len);
     std::memcpy(sll.sll_addr, mac_dest, 6);
 
     size_t total_len = 14 + occupation + payload_len;
@@ -232,8 +226,6 @@ void MainWindow::updateTable(QString time, QString src, QString dst, QString typ
     // Remplir les cellules de la ligne
     ui->tableWidgetTrames->setItem(0, 0, new QTableWidgetItem(time));
 
-    // Pour extraire les MAC, vous pouvez passer des arguments supplémentaires
-    // à votre signal packetReceived(QString payload, QString src, QString dst)
     ui->tableWidgetTrames->setItem(0, 1, new QTableWidgetItem(src));
     ui->tableWidgetTrames->setItem(0, 2, new QTableWidgetItem(dst));
     ui->tableWidgetTrames->setItem(0, 3, new QTableWidgetItem(type));
@@ -245,6 +237,7 @@ void MainWindow::updateTable(QString time, QString src, QString dst, QString typ
     }
 }
 
+//permet de relancer la reception sur le bon port réseau
 void MainWindow::restartSniffer() {
     ui->statusLabel->setText("Arrêt du sniffer en cours...");
 
@@ -324,10 +317,10 @@ void MainWindow::sniffPackets()
         }
 
         if (data_size >= 14) { //
+            //détermùination/vérification sur le fait que la trame doit être ignorée ou pas
             char a_enregistrer = 1;
             QByteArray mac_src_vector = QByteArray::fromHex(ui->ReceptionMACSRClineEdit->text().toUtf8());
             QByteArray mac_dest_vector = QByteArray::fromHex(ui->ReceptionMACDESTlineEdit->text().toUtf8());
-
 
             if (mac_src_vector.size() != 6 || mac_dest_vector.size() != 6){
                 QString msgerreur = "les adresse mac doivent avoir 6 octets";
@@ -347,14 +340,11 @@ void MainWindow::sniffPackets()
             if (a_enregistrer == 1)
             {
 
-
-
                 uint32_t payload_len = data_size - 14;
 
                 // On extrait les octets du payload et on les convertit en QString
                 QByteArray payloadBytes(reinterpret_cast<const char*>(buffer + 14), payload_len);
                 QString textPayload = QString::fromUtf8(payloadBytes);
-
 
 
                 // On prévient l'interface graphique qu'on a un nouveau message
@@ -384,53 +374,15 @@ void MainWindow::sniffPackets()
 }
 
 void MainWindow::executeDecoderCpp(unsigned char * buffer, ssize_t data_size) {
-    /*if (data_size < 16) return;
-    emit snifferError("début");
 
-    QProcess *process = new QProcess(this);
-    QString programme = "/chemin/volontairement/faux/RS_RUN"; // Votre erreur de test
-
-    QByteArray safeData(reinterpret_cast<const char*>(buffer + 15), data_size - 15);
-    QStringList arguments;
-    arguments << safeData.toHex();
-
-    // 1. DÉTECTION D'ÉCHEC DE LANCEMENT (Chemin faux, permissions)
-    connect(process, &QProcess::errorOccurred, this, [this, process, programme](QProcess::ProcessError error) {
-        if (error == QProcess::FailedToStart) {
-            emit snifferError("ERREUR CRITIQUE : Impossible de trouver l'exécutable à : " + programme);
-        } else {
-            emit snifferError("Erreur QProcess : " + QString::number(error));
-        }
-        process->deleteLater();
-    });
-
-    // 2. DÉTECTION DE FIN D'EXÉCUTION (Si le programme a réussi à se lancer)
-    connect(process, &QProcess::finished, this, [this, process](int exitCode) {
-        QByteArray resultat = process->readAllStandardOutput();
-        QByteArray erreur = process->readAllStandardError();
-
-        if (exitCode == 0) {
-            emit snifferError("Résultat décodeur : " + QString::fromUtf8(resultat));
-            emit sendCode(resultat.toStdString());
-        } else {
-            emit snifferError(QString("Le décodeur a quitté (Code %1). Erreur : %2")
-                                  .arg(exitCode).arg(QString::fromUtf8(erreur)));
-        }
-        process->deleteLater();
-    });
-
-    process->start(programme, arguments);*/
-
-
-    if (data_size < 16) return;
+    if (data_size < 16) return;//au cas où il n'y a pas de donnée après l'octet de contrôle
 
     QProcess process;
-    QString program = "/home/see/Documents/paul_bosseboeuf/CHIMERE/RS_ECC/build/RS_RUN"; //"/home/see/Documents/paul_bosseboeuf/ETH/Interface_enigma_3/prgmexttest";
+    QString program = "/home/see/Documents/paul_bosseboeuf/CHIMERE-Develop/SW/RS_ECC/build/RS_RUN"; //"/home/see/Documents/paul_bosseboeuf/ETH/Interface_enigma_3/prgmexttest";
 
     QByteArray safeData(reinterpret_cast<const char*>(buffer + 15), data_size - 15);
     QStringList arguments;
     arguments << safeData.toHex();
-    //QStringList arguments = {"azerty"};
     process.start(program, arguments);
 
     // Attendre que le programme démarre
@@ -477,13 +429,10 @@ void MainWindow::executeDecoderCpp(unsigned char * buffer, ssize_t data_size) {
 
 void MainWindow::on_pushButtonSavePayload_clicked()
 {
-    // 1. Récupération du chemin
-    //std::string path = ui->textEditFileNameSave->toPlainText().toStdString();
+    // Récupération du chemin
     std::string path = ui->lineEditFileNameSave->text().toStdString();
 
-    //  Récupération du payload
-
-    // 2. Sauvegarde dans le fichier texte
+    // Sauvegarde dans le fichier texte
     std::ofstream fichier(path.c_str());
     if (fichier.is_open()) {
         fichier << lastReceivedPayload; //
@@ -497,7 +446,7 @@ void MainWindow::on_pushButtonSavePayload_clicked()
 
 void MainWindow::on_SendFilepushButton_clicked(){
     std::string path = ui->FileNameSendlineEdit->text().toStdString();
-    // 1. Ouverture en mode binaire (brut)
+    // Ouverture en mode binaire (brut)
     std::ifstream fichier(path.c_str(), std::ios::binary);
 
     if (!fichier.is_open()) {
@@ -510,7 +459,7 @@ void MainWindow::on_SendFilepushButton_clicked(){
 
     std::vector<char> buffer(TAILLE_MAX_PAYLOAD);
 
-    // 2. Boucle de lecture et d'envoi
+    // Boucle de lecture et d'envoi
     do {
         // On demande au flux de lire jusqu'à 1499 octets et de les mettre dans le buffer
         fichier.read(buffer.data(), TAILLE_MAX_PAYLOAD);
